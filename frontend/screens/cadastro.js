@@ -12,7 +12,7 @@ export default function Cadastro({navigation}) {
     async function cadastrarUsuario() {
       Alert.alert("teste");
         try {
-            const resposta = await fetch('http://localhost:3000/usuarios', {
+            const resposta = await fetch('http://10.1.91.71:3000/usuarios', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

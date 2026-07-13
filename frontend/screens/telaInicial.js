@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function Home({ navigation }) {
+export default function telaInicial({ navigation }) {
 
   const acoes = [
     { titulo: 'Pedir Ajuda', subtitulo: 'Conecte-se agora', icone: 'call', tela: 'PedirAjuda' },

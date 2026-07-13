@@ -10,7 +10,7 @@ export default function Login({ navigation }) {
 
     async function fazerLogin() {
         try {
-            const resposta = await fetch('http://172.20.90.235:3000/login', {
+            const resposta = await fetch('http://10.1.91.71:3000/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -23,7 +23,7 @@ export default function Login({ navigation }) {
 
             if (dados.sucesso) {
                 Alert.alert('Sucesso', 'Login realizado com sucesso');
-                // navigation.navigate('Home');
+                navigation.navigate('telaInicial');
             } else {
                 Alert.alert('Erro', dados.mensagem || 'Email ou senha incorretos');
             }

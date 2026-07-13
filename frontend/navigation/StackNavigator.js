@@ -3,9 +3,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import Cadastro from '../screens/cadastro';
 import Login from '../screens/login';
-import ListaUsuarios from '../screens/listaUsuarios';
 import PedirAjuda from '../screens/PedirAjuda';
 import Voluntarios from '../screens/Voluntarios';
+import TelaInicial from '../screens/telaInicial';
 
 const Stack = createNativeStackNavigator();
 
@@ -25,8 +25,8 @@ export default function StackNavigator() {
 />
 
 <Stack.Screen
-  name="ListaUsuarios"
-  component={ListaUsuarios}
+  name="telaInicial"
+  component={TelaInicial}
 />
 
 <Stack.Screen
