@@ -6,6 +6,9 @@ import Login from '../screens/login';
 import PedirAjuda from '../screens/PedirAjuda';
 import Voluntarios from '../screens/Voluntarios';
 import TelaInicial from '../screens/telaInicial';
+import Perfil from '../screens/Perfil';
+
+
 
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +35,11 @@ export default function StackNavigator() {
 <Stack.Screen
   name="PedirAjuda"
   component={PedirAjuda}
+/>
+
+<Stack.Screen
+  name="Perfil"
+  component={Perfil}
 />
 
 <Stack.Screen
