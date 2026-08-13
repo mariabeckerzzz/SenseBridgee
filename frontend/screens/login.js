@@ -2,15 +2,17 @@ import { useState } from 'react';
 
 import { View, Text, TextInput, TouchableOpacity,
     StyleSheet, Alert } from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login({ navigation }) {
 
     const [email, setEmail] = useState('');
     const [senha, setSenha] = useState('');
+    const { login } = useAuth();
 
     async function fazerLogin() {
         try {
-            const resposta = await fetch('http://172.20.91.6:3000/login', {
+            const resposta = await fetch('http://172.20.91.19:3000/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -22,11 +24,13 @@ export default function Login({ navigation }) {
             console.log(dados);
 
             if (dados.sucesso) {
-                Alert.alert('Sucesso', 'Login realizado com sucesso');
-                navigation.navigate('telaInicial');
-            } else {
-                Alert.alert('Erro', dados.mensagem || 'Email ou senha incorretos');
-            }
+              await login({ nome: dados.data.nome, email: dados.data.email });
+          
+              Alert.alert('Sucesso', 'Login realizado com sucesso');
+              navigation.navigate('telaInicial');
+          } else {
+              Alert.alert('Erro', dados.mensagem || 'Email ou senha incorretos');
+          }
 
         } catch (erro) {
             Alert.alert('Erro', 'Falha ao fazer login');

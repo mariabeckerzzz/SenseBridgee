@@ -1,7 +1,9 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function telaInicial({ navigation }) {
+  const { usuario } = useAuth();
 
   const acoes = [
     { titulo: 'Pedir Ajuda', subtitulo: 'Conecte-se agora', icone: 'call', tela: 'PedirAjuda' },
@@ -18,7 +20,7 @@ export default function telaInicial({ navigation }) {
         <View style={styles.header}>
           <View style={styles.headerTopo}>
             <View>
-              <Text style={styles.saudacao}>Olá, Maria!</Text>
+              <Text style={styles.saudacao}>Olá, {usuario?.nome ?? 'Visitante'}!</Text>
               <Text style={styles.subSaudacao}>Como podemos ajudar?</Text>
             </View>
 
