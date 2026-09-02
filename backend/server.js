@@ -10,33 +10,62 @@ app.use(express.json());
 
 
 app.post('/usuarios', async (req, res) => {
-    const {nome, email, senha} = req.body;
+    const { nome, email, senha, cpf, numero } = req.body;
+
+    if (!nome || !email || !senha || !cpf || !numero) {
+        return res.status(400).json({
+            mensagem: 'Todos os campos são obrigatórios',
+        });
+    }
+
+    const cpfLimpo = cpf.replace(/\D/g, '');
+    const numeroLimpo = numero.replace(/\D/g, '');
+
+    if (cpfLimpo.length !== 11) {
+        return res.status(400).json({
+            mensagem: 'CPF inválido',
+        });
+    }
 
     const sql = `INSERT INTO usuarios 
-    (nome, email, senha) VALUES (?, ?, ?)`;
+    (nome, email, senha, cpf, numero) VALUES (?, ?, ?, ?, ?)`;
 
-    const senhaCriptografada = await bcrypt.hash(senha, 10);
-    console.log("teste")
-    conexao.query(
-        sql,
-        [nome, email, senhaCriptografada],
-        (erro, resultado) => {
-            if (erro) {
-                console.log(erro)
-                return res.status(500).json({
-                    mensagem: 'Erro ao cadastrar usuário',
+    try {
+        const senhaCriptografada = await bcrypt.hash(senha, 10);
+
+        conexao.query(
+            sql,
+            [nome, email, senhaCriptografada, cpfLimpo, numeroLimpo],
+            (erro, resultado) => {
+                if (erro) {
+                    console.log(erro);
+
+                    if (erro.code === 'ER_DUP_ENTRY') {
+                        return res.status(409).json({
+                            mensagem: 'E-mail ou CPF já cadastrado',
+                        });
+                    }
+
+                    return res.status(500).json({
+                        mensagem: 'Erro ao cadastrar usuário',
+                    });
+                }
+                res.json({
+                    mensagem: 'Usuário cadastrado com sucesso',
                 });
             }
-            res.json({
-                mensagem: 'Usuário cadastrado com sucesso',
-            });
-        }
-    )
+        );
+    } catch (erro) {
+        console.log(erro);
+        return res.status(500).json({
+            mensagem: 'Erro ao cadastrar usuário',
+        });
+    }
 });
 
 
 app.get('/usuarios', (req, res) => {
-    const sql = "SELECT * FROM usuarios";
+    const sql = "SELECT id_usuario, nome, email, cpf, numero FROM usuarios";
 
     conexao.query(sql, (erro, resultado) => {
         if (erro) {
@@ -50,11 +79,78 @@ app.get('/usuarios', (req, res) => {
 });
 
 
+// NOVA ROTA: busca um usuário específico pelo ID (usada pela tela de Perfil)
+app.get('/usuarios/:id', (req, res) => {
+    const { id } = req.params;
+
+    const sql = "SELECT id_usuario, nome, email, cpf, numero FROM usuarios WHERE id_usuario = ?";
+
+    conexao.query(sql, [id], (erro, resultado) => {
+        if (erro) {
+            console.log(erro);
+            return res.status(500).json({
+                mensagem: 'Erro ao buscar usuário',
+            });
+        }
+
+        if (resultado.length === 0) {
+            return res.status(404).json({
+                mensagem: 'Usuário não encontrado',
+            });
+        }
+
+        res.json(resultado[0]);
+    });
+});
+
+
+// NOVA ROTA: atualiza os dados do usuário (usada pela edição no Perfil)
+app.put('/usuarios/:id', (req, res) => {
+    const { id } = req.params;
+    const { nome, email, cpf, numero } = req.body;
+
+    if (!nome || !email || !cpf || !numero) {
+        return res.status(400).json({
+            mensagem: 'Todos os campos são obrigatórios',
+        });
+    }
+
+    const cpfLimpo = cpf.replace(/\D/g, '');
+    const numeroLimpo = numero.replace(/\D/g, '');
+
+    const sql = `UPDATE usuarios SET nome = ?, email = ?, cpf = ?, numero = ? WHERE id_usuario = ?`;
+
+    conexao.query(
+        sql,
+        [nome, email, cpfLimpo, numeroLimpo, id],
+        (erro, resultado) => {
+            if (erro) {
+                console.log(erro);
+
+                if (erro.code === 'ER_DUP_ENTRY') {
+                    return res.status(409).json({
+                        mensagem: 'E-mail ou CPF já usado por outro usuário',
+                    });
+                }
+
+                return res.status(500).json({
+                    mensagem: 'Erro ao atualizar usuário',
+                });
+            }
+
+            res.json({
+                mensagem: 'Dados atualizados com sucesso',
+            });
+        }
+    );
+});
+
+
 app.post('/login', (req, res) => {
-    const {email, senha} = req.body;
+    const { email, senha } = req.body;
 
     const query = `SELECT * FROM usuarios WHERE email = ?`;
-    
+
     conexao.query(query, [email], async (erro, resultado) => {
         if (erro) {
             console.log(erro);
@@ -78,7 +174,13 @@ app.post('/login', (req, res) => {
             return res.json({
                 sucesso: true,
                 mensagem: 'Login bem-sucedido',
-                data: { nome: usuario.nome, email: usuario.email }, // não manda a senha de volta
+                data: {
+                    id_usuario: usuario.id_usuario, // agora envia o ID
+                    nome: usuario.nome,
+                    email: usuario.email,
+                    cpf: usuario.cpf,
+                    numero: usuario.numero,
+                },
             });
         }
 
@@ -88,7 +190,6 @@ app.post('/login', (req, res) => {
         });
     });
 });
-
 
 
 app.listen(3000, () => {

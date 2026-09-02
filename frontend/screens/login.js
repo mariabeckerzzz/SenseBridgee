@@ -12,7 +12,7 @@ export default function Login({ navigation }) {
 
     async function fazerLogin() {
         try {
-            const resposta = await fetch('http://172.20.91.19:3000/login', {
+            const resposta = await fetch('http://192.168.56.1:3000/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -24,8 +24,14 @@ export default function Login({ navigation }) {
             console.log(dados);
 
             if (dados.sucesso) {
-              await login({ nome: dados.data.nome, email: dados.data.email });
-          
+              await login({
+                id_usuario: dados.data.id_usuario,
+                nome: dados.data.nome,
+                email: dados.data.email,
+                cpf: dados.data.cpf,
+                numero: dados.data.numero,
+              });
+
               Alert.alert('Sucesso', 'Login realizado com sucesso');
               navigation.navigate('telaInicial');
           } else {
@@ -56,6 +62,7 @@ export default function Login({ navigation }) {
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
+                    autoCapitalize="none"
                 />
 
                 <TextInput
@@ -94,24 +101,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     justifyContent: 'center'
   },
-
   logoContainer: {
     alignItems: 'center',
     marginBottom: 40
   },
-
   logo: {
     fontSize: 34,
     fontWeight: '700',
     color: '#2563EB'
   },
-
   subtitulo: {
     marginTop: 8,
     color: '#6B7280',
     fontSize: 15
   },
-
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
@@ -121,14 +124,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4
   },
-
   titulo: {
     fontSize: 28,
     fontWeight: '700',
     color: '#111827',
     marginBottom: 24
   },
-
   input: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
@@ -138,7 +139,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontSize: 16
   },
-
   botao: {
     backgroundColor: '#2563EB',
     borderRadius: 16,
@@ -146,13 +146,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8
   },
-
   textoBotao: {
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 16
   },
-
   link: {
     textAlign: 'center',
     marginTop: 24,
