@@ -10,11 +10,17 @@ app.use(express.json());
 
 
 app.post('/usuarios', async (req, res) => {
-    const { nome, email, senha, cpf, numero } = req.body;
+    const { nome, email, senha, cpf, numero, tipo_usuario } = req.body;
 
-    if (!nome || !email || !senha || !cpf || !numero) {
+    if (!nome || !email || !senha || !cpf || !numero || !tipo_usuario) {
         return res.status(400).json({
             mensagem: 'Todos os campos são obrigatórios',
+        });
+    }
+
+    if (!['pcd', 'voluntario'].includes(tipo_usuario)) {
+        return res.status(400).json({
+            mensagem: 'Tipo de usuário inválido',
         });
     }
 
@@ -28,14 +34,14 @@ app.post('/usuarios', async (req, res) => {
     }
 
     const sql = `INSERT INTO usuarios 
-    (nome, email, senha, cpf, numero) VALUES (?, ?, ?, ?, ?)`;
+    (nome, email, senha, cpf, numero, tipo_usuario) VALUES (?, ?, ?, ?, ?, ?)`;
 
     try {
         const senhaCriptografada = await bcrypt.hash(senha, 10);
 
         conexao.query(
             sql,
-            [nome, email, senhaCriptografada, cpfLimpo, numeroLimpo],
+            [nome, email, senhaCriptografada, cpfLimpo, numeroLimpo, tipo_usuario],
             (erro, resultado) => {
                 if (erro) {
                     console.log(erro);
@@ -63,9 +69,8 @@ app.post('/usuarios', async (req, res) => {
     }
 });
 
-
 app.get('/usuarios', (req, res) => {
-    const sql = "SELECT id_usuario, nome, email, cpf, numero FROM usuarios";
+    const sql = "SELECT id_usuario, nome, email, cpf, numero, tipo_usuario FROM usuarios";
 
     conexao.query(sql, (erro, resultado) => {
         if (erro) {
@@ -83,7 +88,7 @@ app.get('/usuarios', (req, res) => {
 app.get('/usuarios/:id', (req, res) => {
     const { id } = req.params;
 
-    const sql = "SELECT id_usuario, nome, email, cpf, numero FROM usuarios WHERE id_usuario = ?";
+    const sql = "SELECT id_usuario, nome, email, cpf, numero, tipo_usuario FROM usuarios WHERE id_usuario = ?";
 
     conexao.query(sql, [id], (erro, resultado) => {
         if (erro) {
@@ -180,6 +185,7 @@ app.post('/login', (req, res) => {
                     email: usuario.email,
                     cpf: usuario.cpf,
                     numero: usuario.numero,
+                    tipo_usuario: usuario.tipo_usuario,
                 },
             });
         }

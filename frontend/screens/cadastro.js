@@ -8,6 +8,7 @@ export default function Cadastro({ navigation }) {
   const [senha, setSenha] = useState('');
   const [cpf, setCpf] = useState('');
   const [numero, setNumero] = useState('');
+  const [tipoUsuario, setTipoUsuario] = useState('');
 
   function formatarCpf(texto) {
     const numeros = texto.replace(/\D/g, '').slice(0, 11);
@@ -25,13 +26,18 @@ export default function Cadastro({ navigation }) {
   }
 
   async function cadastrarUsuario() {
+    if (!tipoUsuario) {
+      Alert.alert('Atenção', 'Selecione se você é PCD ou Voluntário');
+      return;
+    }
+
     try {
       const resposta = await fetch('http://192.168.56.1:3000/usuarios', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ nome, email, senha, cpf, numero }),
+        body: JSON.stringify({ nome, email, senha, cpf, numero, tipo_usuario: tipoUsuario }),
       });
 
       const dados = await resposta.json();
@@ -43,6 +49,7 @@ export default function Cadastro({ navigation }) {
       setSenha('');
       setCpf('');
       setNumero('');
+      setTipoUsuario('');
     } catch (erro) {
       Alert.alert('Erro ao cadastrar usuário');
     }
@@ -101,6 +108,39 @@ export default function Cadastro({ navigation }) {
           onChangeText={setSenha}
           secureTextEntry
         />
+
+        <Text style={styles.label}>Eu sou:</Text>
+        <View style={styles.seletorContainer}>
+          <TouchableOpacity
+            style={[
+              styles.opcaoTipo,
+              tipoUsuario === 'pcd' && styles.opcaoTipoSelecionada
+            ]}
+            onPress={() => setTipoUsuario('pcd')}
+          >
+            <Text style={[
+              styles.opcaoTipoTexto,
+              tipoUsuario === 'pcd' && styles.opcaoTipoTextoSelecionado
+            ]}>
+              Pessoa com Deficiência
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.opcaoTipo,
+              tipoUsuario === 'voluntario' && styles.opcaoTipoSelecionada
+            ]}
+            onPress={() => setTipoUsuario('voluntario')}
+          >
+            <Text style={[
+              styles.opcaoTipoTexto,
+              tipoUsuario === 'voluntario' && styles.opcaoTipoTextoSelecionado
+            ]}>
+              Voluntário
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={styles.botao}
@@ -185,5 +225,37 @@ const styles = StyleSheet.create({
     marginTop: 24,
     color: '#2563EB',
     fontWeight: '600'
-  }
+  },
+  label: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '600',
+    marginBottom: 8
+  },
+  seletorContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16
+  },
+  opcaoTipo: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB'
+  },
+  opcaoTipoSelecionada: {
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF'
+  },
+  opcaoTipoTexto: {
+    color: '#6B7280',
+    fontWeight: '600',
+    fontSize: 13
+  },
+  opcaoTipoTextoSelecionado: {
+    color: '#2563EB'
+  },
 });

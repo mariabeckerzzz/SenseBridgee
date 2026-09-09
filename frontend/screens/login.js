@@ -30,6 +30,7 @@ export default function Login({ navigation }) {
                 email: dados.data.email,
                 cpf: dados.data.cpf,
                 numero: dados.data.numero,
+                tipo_usuario: dados.data.tipo_usuario,
               });
 
               Alert.alert('Sucesso', 'Login realizado com sucesso');
