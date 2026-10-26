@@ -17,6 +17,32 @@ function timeToMinutes(hora) {
   return (h || 0) * 60 + (m || 0);
 }
 
+function normalizarDiaSemana(dia) {
+  if (!dia) return '';
+
+  const valor = String(dia).trim().toLowerCase();
+  const mapa = {
+    domingo: 'Domingo',
+    'domingo-feira': 'Domingo',
+    segunda: 'Segunda',
+    'segunda-feira': 'Segunda',
+    terca: 'Terça',
+    'terca-feira': 'Terça',
+    terça: 'Terça',
+    'terça-feira': 'Terça',
+    quarta: 'Quarta',
+    'quarta-feira': 'Quarta',
+    quinta: 'Quinta',
+    'quinta-feira': 'Quinta',
+    sexta: 'Sexta',
+    'sexta-feira': 'Sexta',
+    sabado: 'Sábado',
+    sábado: 'Sábado',
+  };
+
+  return mapa[valor] || valor.charAt(0).toUpperCase() + valor.slice(1);
+}
+
 function horariosSeSobrepoem(inicioA, fimA, inicioB, fimB) {
   const inicioAMin = timeToMinutes(inicioA);
   const fimAMin = timeToMinutes(fimA);
@@ -401,7 +427,11 @@ app.get('/voluntarios/:id/disponibilidades', async (req, res) => {
 
 app.post('/voluntarios/:id/disponibilidades', async (req, res) => {
   const { id } = req.params;
-  const { dia_semana, horario_inicio, horario_fim } = req.body;
+  let { dia_semana, horario_inicio, horario_fim } = req.body;
+
+  dia_semana = normalizarDiaSemana(dia_semana);
+  horario_inicio = normalizarHorario(horario_inicio);
+  horario_fim = normalizarHorario(horario_fim);
 
   const diasValidos = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
@@ -429,7 +459,7 @@ app.post('/voluntarios/:id/disponibilidades', async (req, res) => {
       VALUES (?, ?, ?, ?, 1)
     `;
 
-    const resultado = await queryAsync(sql, [id, dia_semana, normalizarHorario(horario_inicio), normalizarHorario(horario_fim)]);
+    const resultado = await queryAsync(sql, [id, dia_semana, horario_inicio, horario_fim]);
 
     return res.status(201).json({
       mensagem: 'Disponibilidade cadastrada com sucesso',
@@ -443,7 +473,11 @@ app.post('/voluntarios/:id/disponibilidades', async (req, res) => {
 
 app.put('/voluntarios/:id/disponibilidades/:disponibilidadeId', async (req, res) => {
   const { id, disponibilidadeId } = req.params;
-  const { dia_semana, horario_inicio, horario_fim } = req.body;
+  let { dia_semana, horario_inicio, horario_fim } = req.body;
+
+  dia_semana = normalizarDiaSemana(dia_semana);
+  horario_inicio = normalizarHorario(horario_inicio);
+  horario_fim = normalizarHorario(horario_fim);
 
   const diasValidos = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
@@ -467,7 +501,7 @@ app.put('/voluntarios/:id/disponibilidades/:disponibilidadeId', async (req, res)
       WHERE id_disponibilidade = ? AND id_voluntario = ?
     `;
 
-    const resultado = await queryAsync(sql, [dia_semana, normalizarHorario(horario_inicio), normalizarHorario(horario_fim), disponibilidadeId, id]);
+    const resultado = await queryAsync(sql, [dia_semana, horario_inicio, horario_fim, disponibilidadeId, id]);
 
     if (resultado.affectedRows === 0) {
       return res.status(404).json({ mensagem: 'Disponibilidade não encontrada' });
