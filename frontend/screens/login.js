@@ -12,7 +12,7 @@ export default function Login({ navigation }) {
 
     async function fazerLogin() {
         try {
-            const resposta = await fetch('http://192.168.56.1:3000/login', {
+            const resposta = await fetch('http://localhost:3000/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -32,7 +32,7 @@ export default function Cadastro({ navigation }) {
     }
 
     try {
-      const resposta = await fetch('http://192.168.56.1:3000/usuarios', {
+      const resposta = await fetch('http://localhost:3000/usuarios', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,14 +42,21 @@ export default function Cadastro({ navigation }) {
 
       const dados = await resposta.json();
 
-      Alert.alert(dados.mensagem);
+    if (!resposta.ok) {
+      Alert.alert('Erro', dados.mensagem);
+      return;
+    }
 
-      setNome('');
-      setEmail('');
-      setSenha('');
-      setCpf('');
-      setNumero('');
-      setTipoUsuario('');
+    Alert.alert('Sucesso', dados.mensagem);
+
+    setNome('');
+    setEmail('');
+    setSenha('');
+    setCpf('');
+    setNumero('');
+    setTipoUsuario('');
+
+    navigation.navigate('login');
     } catch (erro) {
       Alert.alert('Erro ao cadastrar usuário');
     }

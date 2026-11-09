@@ -2,15 +2,23 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function telaInicial({ navigation }) {
+export default function TelaInicial({ navigation }) {
   const { usuario } = useAuth();
 
-  const acoes = [
-    { titulo: 'Pedir Ajuda', subtitulo: 'Conecte-se agora', icone: 'call', tela: 'PedirAjuda' },
-    { titulo: 'Voluntários', subtitulo: 'Agendar ajuda', icone: 'people', tela: 'Voluntarios' },
+  const acoesPcD = [
+    { titulo: 'Pedir Ajuda', subtitulo: 'Agendar com voluntário', icone: 'call', tela: 'Voluntarios' },
+    { titulo: 'Minhas Solicitações', subtitulo: 'Acompanhar pedidos', icone: 'list', tela: 'MinhasSolicitacoes' },
     { titulo: 'Aprender Libras', subtitulo: 'Aulas grátis', icone: 'sparkles', tela: 'AulasLibras' },
     { titulo: 'Meu Perfil', subtitulo: 'Configurações', icone: 'person', tela: 'Perfil' },
   ];
+
+  const acoesVoluntario = [
+    { titulo: 'Ver Solicitações', subtitulo: 'Pedidos de ajuda', icone: 'people', tela: 'SolicitacoesVoluntario' },
+    { titulo: 'Minha Disponibilidade', subtitulo: 'Definir horários', icone: 'calendar', tela: 'DisponibilidadeVoluntario' },
+    { titulo: 'Meu Perfil', subtitulo: 'Configurações', icone: 'person', tela: 'Perfil' },
+  ];
+
+  const acoes = usuario?.tipo_usuario === 'voluntario' ? acoesVoluntario : acoesPcD;
 
   return (
     <View style={styles.container}>

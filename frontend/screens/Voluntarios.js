@@ -1,49 +1,183 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  SafeAreaView,
+  ActivityIndicator,
+  TextInput,
+  Alert,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
+
+const API_URL = Platform.select({
+  web: 'http://localhost:3000',
+  android: 'http://10.0.2.2:3000',
+  ios: 'http://localhost:3000',
+  default: 'http://localhost:3000',
+});
+
+const NOMES_DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const ABREV_DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MESES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+const TIPOS_AJUDA = ['Libras', 'Leitura', 'Atendimento geral'];
+
+// Alert.alert não funciona bem no navegador, então usamos window.alert nele
+function avisar(titulo, mensagem) {
+  if (Platform.OS === 'web') {
+    window.alert(mensagem ? `${titulo}\n${mensagem}` : titulo);
+  } else {
+    Alert.alert(titulo, mensagem);
+  }
+}
+
+// Gera YYYY-MM-DD no horário local (toISOString mudaria o dia por causa do fuso)
+function formatarDataSQL(data) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+function gerarProximosDias(quantidade) {
+  const lista = [];
+  const hoje = new Date();
+  for (let i = 0; i < quantidade; i++) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i);
+    lista.push({
+      data: d,
+      chave: formatarDataSQL(d),
+      abrev: ABREV_DIAS[d.getDay()],
+      numero: d.getDate(),
+      nomeDia: NOMES_DIAS[d.getDay()],
+    });
+  }
+  return lista;
+}
 
 export default function Voluntarios({ navigation }) {
+  const { usuario } = useAuth();
 
-  const dias = [
-    { label: 'Seg', numero: 13 },
-    { label: 'Ter', numero: 14 },
-    { label: 'Qua', numero: 15 },
-    { label: 'Qui', numero: 16 },
-    { label: 'Sex', numero: 17 },
-  ];
+  const [dias] = useState(() => gerarProximosDias(7));
+  const [diaSelecionado, setDiaSelecionado] = useState(dias[0]);
+  const [voluntarios, setVoluntarios] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
 
-  const horarios = [
-    { hora: '09:00', disponivel: true },
-    { hora: '10:00', disponivel: true },
-    { hora: '11:00', disponivel: false },
-    { hora: '13:00', disponivel: true },
-    { hora: '14:00', disponivel: true },
-    { hora: '15:00', disponivel: false },
-    { hora: '16:00', disponivel: true },
-    { hora: '17:00', disponivel: true },
-  ];
-
-  const voluntarios = [
-    { id: 1, nome: 'João Silva', nota: 4.9, especialidade: 'Libras', emoji: '🧑‍🦱' },
-    { id: 2, nome: 'Maria Santos', nota: 5, especialidade: 'Leitura', emoji: '👩‍🦰' },
-    { id: 3, nome: 'Pedro Costa', nota: 4.8, especialidade: 'Geral', emoji: '🧑‍🦰' },
-  ];
-
-  const [diaSelecionado, setDiaSelecionado] = useState(15);
+  const [voluntarioSelecionado, setVoluntarioSelecionado] = useState(null);
   const [horarioSelecionado, setHorarioSelecionado] = useState(null);
-  const [voluntarioSelecionado, setVoluntarioSelecionado] = useState(2);
+  const [tipoAjuda, setTipoAjuda] = useState(TIPOS_AJUDA[0]);
+  const [descricao, setDescricao] = useState('');
+  const [enviando, setEnviando] = useState(false);
 
-  function confirmarAgendamento() {
-    if (!horarioSelecionado) {
+  useEffect(() => {
+    async function carregar() {
+      try {
+        const resposta = await fetch(`${API_URL}/voluntarios/disponiveis`);
+        const dados = await resposta.json();
+
+        if (!resposta.ok) {
+          throw new Error(dados.mensagem || 'Erro ao buscar voluntários');
+        }
+
+        setVoluntarios(dados || []);
+      } catch (e) {
+        setErro(e.message || 'Erro ao buscar voluntários');
+      } finally {
+        setCarregando(false);
+      }
+    }
+    carregar();
+  }, []);
+
+  // Voluntários que têm horário no dia da semana escolhido
+  const voluntariosDoDia = voluntarios
+    .map((v) => ({
+      ...v,
+      horariosDoDia: v.disponibilidades.filter((d) => d.dia_semana === diaSelecionado.nomeDia),
+    }))
+    .filter((v) => v.horariosDoDia.length > 0);
+
+  const voluntarioAtual = voluntariosDoDia.find(
+    (v) => v.id_voluntario === voluntarioSelecionado
+  );
+
+  function escolherDia(dia) {
+    setDiaSelecionado(dia);
+    setVoluntarioSelecionado(null);
+    setHorarioSelecionado(null);
+  }
+
+  function escolherVoluntario(id) {
+    setVoluntarioSelecionado(id);
+    setHorarioSelecionado(null);
+  }
+
+  async function confirmarAgendamento() {
+    if (!usuario?.id_usuario) {
+      avisar('Atenção', 'Faça login para continuar.');
       return;
     }
-    navigation.navigate('PedirAjuda');
+
+    if (!voluntarioAtual || !horarioSelecionado) {
+      avisar('Atenção', 'Escolha um voluntário e um horário.');
+      return;
+    }
+
+    setEnviando(true);
+
+    try {
+      // 1) descobre o id_pcd do usuário logado
+      const respostaPcd = await fetch(`${API_URL}/pcd/usuario/${usuario.id_usuario}`);
+      const dadosPcd = await respostaPcd.json();
+
+      if (!respostaPcd.ok) {
+        throw new Error(dadosPcd.mensagem || 'Perfil de PcD não encontrado');
+      }
+
+      // 2) envia a solicitação
+      const resposta = await fetch(`${API_URL}/solicitacoes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_pcd: dadosPcd.id_pcd,
+          id_voluntario: voluntarioAtual.id_voluntario,
+          id_disponibilidade: horarioSelecionado.id_disponibilidade,
+          tipo_ajuda: tipoAjuda,
+          descricao: descricao.trim() || null,
+          data_agendamento: diaSelecionado.chave,
+          horario_inicio: horarioSelecionado.horario_inicio,
+          horario_fim: horarioSelecionado.horario_fim,
+        }),
+      });
+
+      const dados = await resposta.json();
+
+      if (!resposta.ok) {
+        throw new Error(dados.mensagem || 'Erro ao enviar solicitação');
+      }
+
+      avisar('Sucesso', 'Solicitação enviada! Aguarde a resposta do voluntário.');
+      navigation.goBack();
+    } catch (e) {
+      avisar('Erro', e.message || 'Não foi possível enviar a solicitação');
+    } finally {
+      setEnviando(false);
+    }
   }
+
+  const podeConfirmar = !!voluntarioAtual && !!horarioSelecionado && !enviando;
 
   return (
     <SafeAreaView style={styles.container}>
-
-      {/* Cabeçalho azul */}
+      {/* Cabeçalho */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -54,92 +188,62 @@ export default function Voluntarios({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.conteudo}>
+        {/* Mês */}
+        <Text style={styles.mesTexto}>
+          {MESES[diaSelecionado.data.getMonth()]} {diaSelecionado.data.getFullYear()}
+        </Text>
 
-        {/* Navegação de mês */}
-        <View style={styles.mesLinha}>
-          <Text style={styles.mesTexto}>Outubro 2025</Text>
-          <View style={styles.setas}>
-            <TouchableOpacity style={styles.setaBotao}>
-              <Ionicons name="chevron-back" size={18} color="#374151" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.setaBotao}>
-              <Ionicons name="chevron-forward" size={18} color="#374151" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Dias da semana */}
-        <View style={styles.diasLinha}>
+        {/* Próximos 7 dias */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.diasLinha}
+        >
           {dias.map((dia) => {
-            const selecionado = dia.numero === diaSelecionado;
+            const selecionado = dia.chave === diaSelecionado.chave;
             return (
               <TouchableOpacity
-                key={dia.numero}
+                key={dia.chave}
                 style={[styles.diaCard, selecionado && styles.diaCardSelecionado]}
-                onPress={() => {
-                  setDiaSelecionado(dia.numero);
-                  setHorarioSelecionado(null);
-                }}
+                onPress={() => escolherDia(dia)}
               >
-                <Text style={[styles.diaLabel, selecionado && styles.diaTextoSelecionado]}>
-                  {dia.label}
+                <Text style={[styles.diaLabel, selecionado && styles.textoBranco]}>
+                  {dia.abrev}
                 </Text>
-                <Text style={[styles.diaNumero, selecionado && styles.diaTextoSelecionado]}>
+                <Text style={[styles.diaNumero, selecionado && styles.textoBranco]}>
                   {dia.numero}
                 </Text>
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
 
-        {/* Horários disponíveis */}
-        <Text style={styles.secaoTitulo}>Horários disponíveis</Text>
-        <View style={styles.horariosGrid}>
-          {horarios.map((item) => {
-            const selecionado = item.hora === horarioSelecionado;
-            return (
-              <TouchableOpacity
-                key={item.hora}
-                disabled={!item.disponivel}
-                style={[
-                  styles.horarioCard,
-                  !item.disponivel && styles.horarioIndisponivel,
-                  selecionado && styles.horarioSelecionado,
-                ]}
-                onPress={() => setHorarioSelecionado(item.hora)}
-              >
-                <Ionicons
-                  name="time-outline"
-                  size={16}
-                  color={!item.disponivel ? '#D1D5DB' : selecionado ? '#FFFFFF' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.horarioTexto,
-                    !item.disponivel && styles.horarioTextoIndisponivel,
-                    selecionado && styles.horarioTextoSelecionado,
-                  ]}
-                >
-                  {item.hora}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Voluntários disponíveis */}
+        {/* Voluntários do dia */}
         <Text style={styles.secaoTitulo}>Voluntários disponíveis</Text>
-        <View style={styles.voluntariosLista}>
-          {voluntarios.map((v) => {
-            const selecionado = v.id === voluntarioSelecionado;
+
+        {carregando ? (
+          <ActivityIndicator size="large" color="#2563EB" style={{ marginVertical: 20 }} />
+        ) : erro ? (
+          <View style={styles.cardAviso}>
+            <Text style={styles.avisoErro}>{erro}</Text>
+          </View>
+        ) : voluntariosDoDia.length === 0 ? (
+          <View style={styles.cardAviso}>
+            <Text style={styles.avisoTexto}>
+              Nenhum voluntário disponível em {diaSelecionado.nomeDia}. Tente outro dia.
+            </Text>
+          </View>
+        ) : (
+          voluntariosDoDia.map((v) => {
+            const selecionado = v.id_voluntario === voluntarioSelecionado;
             return (
               <TouchableOpacity
-                key={v.id}
+                key={v.id_voluntario}
                 style={[styles.voluntarioCard, selecionado && styles.voluntarioCardSelecionado]}
-                onPress={() => setVoluntarioSelecionado(v.id)}
+                onPress={() => escolherVoluntario(v.id_voluntario)}
               >
                 <View style={styles.voluntarioAvatar}>
-                  <Text style={{ fontSize: 22 }}>{v.emoji}</Text>
+                  <Ionicons name="person" size={22} color="#2563EB" />
                 </View>
 
                 <View style={styles.voluntarioInfo}>
@@ -147,49 +251,98 @@ export default function Voluntarios({ navigation }) {
                     <Text style={styles.voluntarioNome}>{v.nome}</Text>
                     <View style={styles.notaBadge}>
                       <Ionicons name="star" size={12} color="#F59E0B" />
-                      <Text style={styles.notaTexto}>{v.nota}</Text>
+                      <Text style={styles.notaTexto}>{v.avaliacao}</Text>
                     </View>
                   </View>
                   <Text style={styles.voluntarioEspecialidade}>
                     Especialidade: {v.especialidade}
                   </Text>
                 </View>
-
-                <TouchableOpacity
-                  style={styles.videoBotao}
-                  onPress={() => navigation.navigate('PedirAjuda')}
-                >
-                  <Ionicons name="videocam" size={18} color="#2563EB" />
-                </TouchableOpacity>
               </TouchableOpacity>
             );
-          })}
-        </View>
+          })
+        )}
 
+        {/* Horários do voluntário escolhido */}
+        {voluntarioAtual ? (
+          <>
+            <Text style={styles.secaoTitulo}>Horários de {voluntarioAtual.nome}</Text>
+            <View style={styles.horariosGrid}>
+              {voluntarioAtual.horariosDoDia.map((h) => {
+                const selecionado =
+                  horarioSelecionado?.id_disponibilidade === h.id_disponibilidade;
+                return (
+                  <TouchableOpacity
+                    key={h.id_disponibilidade}
+                    style={[styles.horarioCard, selecionado && styles.horarioSelecionado]}
+                    onPress={() => setHorarioSelecionado(h)}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color={selecionado ? '#FFFFFF' : '#6B7280'}
+                    />
+                    <Text style={[styles.horarioTexto, selecionado && styles.textoBranco]}>
+                      {h.horario_inicio} - {h.horario_fim}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Tipo de ajuda */}
+            <Text style={styles.secaoTitulo}>Tipo de ajuda</Text>
+            <View style={styles.tiposLinha}>
+              {TIPOS_AJUDA.map((tipo) => {
+                const selecionado = tipo === tipoAjuda;
+                return (
+                  <TouchableOpacity
+                    key={tipo}
+                    style={[styles.tipoChip, selecionado && styles.tipoChipSelecionado]}
+                    onPress={() => setTipoAjuda(tipo)}
+                  >
+                    <Text style={[styles.tipoTexto, selecionado && styles.textoBranco]}>
+                      {tipo}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Descrição opcional */}
+            <TextInput
+              style={styles.input}
+              placeholder="Descreva do que você precisa (opcional)"
+              value={descricao}
+              onChangeText={setDescricao}
+              multiline
+            />
+          </>
+        ) : null}
       </ScrollView>
 
       {/* Botão de confirmar */}
       <View style={styles.rodape}>
         <TouchableOpacity
-          style={[styles.botaoConfirmar, !horarioSelecionado && styles.botaoDesabilitado]}
-          disabled={!horarioSelecionado}
+          style={[styles.botaoConfirmar, !podeConfirmar && styles.botaoDesabilitado]}
+          disabled={!podeConfirmar}
           onPress={confirmarAgendamento}
         >
           <Text style={styles.botaoConfirmarTexto}>
-            {horarioSelecionado ? `Confirmar às ${horarioSelecionado}` : 'Selecione um horário'}
+            {enviando
+              ? 'Enviando...'
+              : horarioSelecionado
+              ? `Solicitar às ${horarioSelecionado.horario_inicio}`
+              : 'Selecione voluntário e horário'}
           </Text>
         </TouchableOpacity>
       </View>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F7FA',
-  },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
 
   header: {
     backgroundColor: '#3B82F6',
@@ -199,60 +352,14 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
+  headerTitulo: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', marginTop: 12 },
+  headerSubtitulo: { color: '#DBEAFE', fontSize: 14, marginTop: 6 },
 
-  headerTitulo: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '700',
-    marginTop: 12,
-  },
+  conteudo: { padding: 20, paddingBottom: 40 },
 
-  headerSubtitulo: {
-    color: '#DBEAFE',
-    fontSize: 14,
-    marginTop: 6,
-  },
+  mesTexto: { fontSize: 17, fontWeight: '600', color: '#111827', marginBottom: 16 },
 
-  conteudo: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-
-  mesLinha: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-
-  mesTexto: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#111827',
-  },
-
-  setas: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-
-  setaBotao: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-
-  diasLinha: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-
+  diasLinha: { gap: 10, paddingBottom: 4, marginBottom: 20 },
   diaCard: {
     width: 58,
     paddingVertical: 12,
@@ -262,80 +369,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  diaCardSelecionado: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+  diaLabel: { fontSize: 13, color: '#6B7280', marginBottom: 4 },
+  diaNumero: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  textoBranco: { color: '#FFFFFF' },
 
-  diaCardSelecionado: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
-  },
+  secaoTitulo: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 12, marginTop: 8 },
 
-  diaLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-
-  diaNumero: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-
-  diaTextoSelecionado: {
-    color: '#FFFFFF',
-  },
-
-  secaoTitulo: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-
-  horariosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 28,
-  },
-
-  horarioCard: {
-    width: '23.5%',
+  cardAviso: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-
-  horarioIndisponivel: {
-    backgroundColor: '#F3F4F6',
-  },
-
-  horarioSelecionado: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
-  },
-
-  horarioTexto: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 4,
-  },
-
-  horarioTextoIndisponivel: {
-    color: '#D1D5DB',
-  },
-
-  horarioTextoSelecionado: {
-    color: '#FFFFFF',
-  },
-
-  voluntariosLista: {
-    gap: 12,
-  },
+  avisoTexto: { color: '#6B7280', textAlign: 'center', fontSize: 14 },
+  avisoErro: { color: '#B91C1C', textAlign: 'center', fontSize: 14 },
 
   voluntarioCard: {
     flexDirection: 'row',
@@ -347,12 +397,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     marginBottom: 12,
   },
-
-  voluntarioCardSelecionado: {
-    borderColor: '#2563EB',
-    borderWidth: 2,
-  },
-
+  voluntarioCardSelecionado: { borderColor: '#2563EB', borderWidth: 2 },
   voluntarioAvatar: {
     width: 48,
     height: 48,
@@ -362,23 +407,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-
-  voluntarioInfo: {
-    flex: 1,
-  },
-
-  voluntarioNomeLinha: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-
-  voluntarioNome: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-  },
-
+  voluntarioInfo: { flex: 1 },
+  voluntarioNomeLinha: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  voluntarioNome: { fontSize: 15, fontWeight: '700', color: '#111827' },
   notaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -388,48 +419,54 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     gap: 3,
   },
+  notaTexto: { fontSize: 12, fontWeight: '600', color: '#92400E' },
+  voluntarioEspecialidade: { fontSize: 13, color: '#6B7280', marginTop: 2 },
 
-  notaTexto: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-
-  voluntarioEspecialidade: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-
-  videoBotao: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    justifyContent: 'center',
+  horariosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  horarioCard: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  horarioSelecionado: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+  horarioTexto: { fontSize: 14, fontWeight: '600', color: '#111827' },
+
+  tiposLinha: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  tipoChip: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  tipoChipSelecionado: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+  tipoTexto: { color: '#6B7280', fontWeight: '600', fontSize: 13 },
+
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
+    minHeight: 70,
+    textAlignVertical: 'top',
   },
 
-  rodape: {
-    padding: 20,
-    backgroundColor: '#F5F7FA',
-  },
-
+  rodape: { padding: 20, backgroundColor: '#F5F7FA' },
   botaoConfirmar: {
     backgroundColor: '#2563EB',
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
-
-  botaoDesabilitado: {
-    backgroundColor: '#93C5FD',
-  },
-
-  botaoConfirmarTexto: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  botaoDesabilitado: { backgroundColor: '#93C5FD' },
+  botaoConfirmarTexto: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });
