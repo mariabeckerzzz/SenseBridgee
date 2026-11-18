@@ -25,7 +25,6 @@ export default function MinhasSolicitacoes({ navigation }) {
   try {
     if (!usuario?.id_usuario) return;
 
-    // Busca o ID do perfil PcD usando o ID do usuário
     const respostaPcd = await fetch(
       `${API_URL}/pcd/usuario/${usuario.id_usuario}`
     );
@@ -35,7 +34,6 @@ export default function MinhasSolicitacoes({ navigation }) {
       throw new Error(dadosPcd.mensagem || 'Erro ao buscar perfil PcD');
     }
 
-    // Busca as solicitações usando o ID do PcD
     const resposta = await fetch(
       `${API_URL}/solicitacoes/pcd/${dadosPcd.id_pcd}`
     );

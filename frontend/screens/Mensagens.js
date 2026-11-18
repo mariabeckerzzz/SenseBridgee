@@ -72,7 +72,6 @@ export default function Mensagens({ navigation }) {
 
     carregarMensagens(conversaAtiva.id_solicitacao);
 
-    // Atualiza a conversa aberta para receber mensagens novas.
     const intervalo = setInterval(
       () => carregarMensagens(conversaAtiva.id_solicitacao),
       3000

@@ -26,7 +26,6 @@ export function AuthProvider({ children }) {
     await AsyncStorage.removeItem('@usuario');
   }
 
-  // NOVA FUNÇÃO: atualiza os dados do usuário logado (usada após editar o perfil)
   async function atualizarUsuario(novosDados) {
     const usuarioAtualizado = { ...usuario, ...novosDados };
     setUsuario(usuarioAtualizado);

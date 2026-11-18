@@ -28,9 +28,8 @@ export default function VideosProfessor() {
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando] = useState(false);
 
-  // gravador (web)
   const [aberto, setAberto] = useState(false);
-  const [etapa, setEtapa] = useState('preparando'); // preparando | pronto | gravando | revisando
+  const [etapa, setEtapa] = useState('preparando'); 
   const [frontal, setFrontal] = useState(true);
   const [segundos, setSegundos] = useState(0);
   const [blobGravado, setBlobGravado] = useState(null);
@@ -40,7 +39,6 @@ export default function VideosProfessor() {
   const recorderRef = useRef(null);
   const pedacosRef = useRef([]);
 
-  // Liga o stream ao <video> assim que o elemento existir
   const refVideo = useCallback((el) => {
     if (el && streamRef.current) el.srcObject = streamRef.current;
     refVideo.el = el;
@@ -62,7 +60,6 @@ export default function VideosProfessor() {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  // cronômetro da gravação
   useEffect(() => {
     if (etapa !== 'gravando') return undefined;
     const id = setInterval(() => setSegundos((s) => s + 1), 1000);
@@ -73,7 +70,6 @@ export default function VideosProfessor() {
     if (etapa === 'gravando' && segundos >= LIMITE_SEGUNDOS) pararGravacao();
   }, [segundos, etapa]);
 
-  // nunca deixa câmera/microfone ligados ao sair da tela
   useEffect(() => () => pararCamera(), []);
 
   function pararCamera() {

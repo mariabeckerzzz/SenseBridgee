@@ -46,10 +46,8 @@ module.exports = function registrarRotasVideos(app, conexao) {
         return res.status(500).json({ mensagem: msg });
     };
 
-    // Arquivos têm nome aleatório; a lista só é exposta a quem tem permissão
     app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-    // Professor (PcD) publica um vídeo
     app.post('/ensino/videos', receber, (req, res) => {
         const { id_usuario, palavra } = req.body;
 
@@ -86,7 +84,6 @@ module.exports = function registrarRotasVideos(app, conexao) {
         );
     });
 
-    // Vídeos do professor logado
     app.get('/ensino/videos/pcd/:idUsuario', (req, res) => {
         conexao.query(
             `SELECT v.id_video, v.palavra,
@@ -104,7 +101,6 @@ module.exports = function registrarRotasVideos(app, conexao) {
         );
     });
 
-    // Vídeos visíveis ao voluntário: só de professores que o aceitaram
     app.get('/ensino/videos/voluntario/:idUsuario', (req, res) => {
         conexao.query(
             `SELECT v.id_video, v.palavra,
@@ -128,7 +124,6 @@ module.exports = function registrarRotasVideos(app, conexao) {
         );
     });
 
-    // Excluir (só o dono)
     app.delete('/ensino/videos/:id', (req, res) => {
         conexao.query(
             `SELECT v.arquivo FROM video_libras v

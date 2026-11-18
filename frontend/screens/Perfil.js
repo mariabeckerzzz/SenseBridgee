@@ -30,7 +30,6 @@ export default function Perfil({ navigation }) {
   const [notificacoesAtivas, setNotificacoesAtivas] = useState(true);
   const [legendasAtivas, setLegendasAtivas] = useState(true);
 
-  // Perfil vindo do banco (bio, avatar, interesses, estatísticas, preferências)
   const [perfil, setPerfil] = useState(null);
   const [editandoPerfil, setEditandoPerfil] = useState(false);
 
@@ -45,7 +44,6 @@ export default function Perfil({ navigation }) {
         setLegendasAtivas(!!dados.legendas_automaticas);
       }
     } catch (erro) {
-      // sem conexão: a tela continua com os dados do login
     }
   }, [idUsuario]);
 

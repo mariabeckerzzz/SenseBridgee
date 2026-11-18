@@ -113,7 +113,6 @@ module.exports = function registrarRotasEnsino(app, conexao) {
         );
     }
 
-    // Confere se a candidatura pertence ao usuário logado
     function candidaturaDoUsuario(idCandidatura, idUsuario, cb) {
         conexao.query(
             `SELECT c.id_candidatura FROM candidatura_ensino c
@@ -128,8 +127,6 @@ module.exports = function registrarRotasEnsino(app, conexao) {
         console.log(erro);
         return res.status(500).json({ mensagem: msg });
     };
-
-    // ---------- PROFESSOR (PcD): candidatura ----------
 
     app.post('/ensino/candidaturas', (req, res) => {
         const { id_usuario, descricao, modalidade, max_voluntarios, categorias, disponibilidades } = req.body;
@@ -163,7 +160,6 @@ module.exports = function registrarRotasEnsino(app, conexao) {
         });
     });
 
-    // Candidatura do professor logado (retorna null se não houver)
     app.get('/ensino/candidaturas/pcd/:idUsuario', (req, res) => {
         conexao.query(
             `SELECT c.id_candidatura, c.descricao, c.modalidade, c.max_voluntarios, c.status
@@ -216,7 +212,6 @@ module.exports = function registrarRotasEnsino(app, conexao) {
         });
     });
 
-    // Pausar / reativar
     app.patch('/ensino/candidaturas/:id/status', (req, res) => {
         const { id_usuario, status } = req.body;
         if (!['ativa', 'pausada'].includes(status)) {
@@ -248,9 +243,6 @@ module.exports = function registrarRotasEnsino(app, conexao) {
         });
     });
 
-    // ---------- VOLUNTÁRIO: aprender ----------
-
-    // Candidaturas ativas + status da solicitação do voluntário logado
     app.get('/ensino/candidaturas', (req, res) => {
         buscarVoluntario(req.query.id_usuario, (e, vol) => {
             if (e) return erroServidor(res, e, 'Erro ao validar usuário');
@@ -280,7 +272,6 @@ module.exports = function registrarRotasEnsino(app, conexao) {
         });
     });
 
-    // "Quero aprender"
     app.post('/ensino/solicitacoes', (req, res) => {
         const { id_usuario, id_candidatura, conteudo_desejado, disponibilidade } = req.body;
 
@@ -325,7 +316,6 @@ module.exports = function registrarRotasEnsino(app, conexao) {
         });
     });
 
-    // Solicitações enviadas pelo voluntário
     app.get('/ensino/solicitacoes/voluntario/:idUsuario', (req, res) => {
         conexao.query(
             `SELECT s.id_solicitacao_aprender, s.conteudo_desejado, s.status,
@@ -345,8 +335,6 @@ module.exports = function registrarRotasEnsino(app, conexao) {
             }
         );
     });
-
-    // ---------- PROFESSOR: voluntários interessados ----------
 
     app.get('/ensino/solicitacoes/professor/:idUsuario', (req, res) => {
         conexao.query(
@@ -368,7 +356,6 @@ module.exports = function registrarRotasEnsino(app, conexao) {
         );
     });
 
-    // Aceitar / recusar (somente o professor dono da candidatura)
     app.patch('/ensino/solicitacoes/:id/status', (req, res) => {
         const { id_usuario, status } = req.body;
         if (!['aceita', 'recusada'].includes(status)) {

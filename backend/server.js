@@ -60,7 +60,6 @@ app.post('/usuarios', async (req, res) => {
                     });
                 }
 
-                // O nome da tabela vem de uma escolha fixa (nunca do que o usuário digita)
                 const tabelaPerfil =
                     tipo_usuario === 'voluntario' ? 'voluntario' : 'pessoa_deficiencia';
 
@@ -101,7 +100,6 @@ app.get('/usuarios', (req, res) => {
     });
 });
 
-// Busca um usuário específico pelo ID (tela de Perfil)
 app.get('/usuarios/:id', (req, res) => {
     const { id } = req.params;
 
@@ -126,7 +124,6 @@ app.get('/usuarios/:id', (req, res) => {
     });
 });
 
-// Atualiza os dados do usuário (edição no Perfil)
 app.put('/usuarios/:id', (req, res) => {
     const { id } = req.params;
     const { nome, email, cpf, numero } = req.body;
@@ -162,11 +159,6 @@ app.put('/usuarios/:id', (req, res) => {
         });
     });
 });
-
-
-// ======================================================
-// LOGIN
-// ======================================================
 
 app.post('/login', (req, res) => {
     const { email, senha } = req.body;
@@ -215,11 +207,6 @@ app.post('/login', (req, res) => {
 });
 
 
-// ======================================================
-// VOLUNTÁRIOS E DISPONIBILIDADE
-// ======================================================
-
-// Lista voluntários (a tela usa para achar o id_voluntario do usuário logado)
 app.get('/voluntarios', (req, res) => {
     conexao.query('SELECT id_voluntario, id_usuario FROM voluntario', (erro, resultado) => {
         if (erro) {
@@ -230,8 +217,7 @@ app.get('/voluntarios', (req, res) => {
     });
 });
 
-// Voluntários com nome e horários disponíveis (tela de agendamento do PcD)
-// IMPORTANTE: esta rota precisa ficar ANTES de qualquer rota /voluntarios/:id/...
+
 app.get('/voluntarios/disponiveis', (req, res) => {
     const sql = `SELECT v.id_voluntario, u.nome, v.especialidade, v.avaliacao,
                         d.id_disponibilidade, d.dia_semana,
@@ -272,7 +258,6 @@ app.get('/voluntarios/disponiveis', (req, res) => {
     });
 });
 
-// Lista disponibilidades de um voluntário
 app.get('/voluntarios/:id/disponibilidades', (req, res) => {
     const sql = `SELECT id_disponibilidade, dia_semana, horario_inicio, horario_fim
                  FROM disponibilidade_voluntario
@@ -287,7 +272,6 @@ app.get('/voluntarios/:id/disponibilidades', (req, res) => {
     });
 });
 
-// Cadastra disponibilidade
 app.post('/voluntarios/:id/disponibilidades', (req, res) => {
     const { dia_semana, horario_inicio, horario_fim } = req.body;
 
@@ -307,7 +291,6 @@ app.post('/voluntarios/:id/disponibilidades', (req, res) => {
     });
 });
 
-// Remove disponibilidade
 app.delete('/voluntarios/:id/disponibilidades/:idDisp', (req, res) => {
     const sql = `DELETE FROM disponibilidade_voluntario
                  WHERE id_disponibilidade = ? AND id_voluntario = ?`;
@@ -322,7 +305,6 @@ app.delete('/voluntarios/:id/disponibilidades/:idDisp', (req, res) => {
 });
 
 
-// Descobre o id_pcd de um usuário (o app usa ao enviar a solicitação)
 app.get('/pcd/usuario/:idUsuario', (req, res) => {
     conexao.query(
         'SELECT id_pcd FROM pessoa_deficiencia WHERE id_usuario = ?',
@@ -340,7 +322,6 @@ app.get('/pcd/usuario/:idUsuario', (req, res) => {
     );
 });
 
-// PcD cria uma solicitação para um voluntário
 app.post('/solicitacoes', (req, res) => {
     const {
         id_pcd, id_voluntario, id_disponibilidade,
@@ -373,7 +354,6 @@ app.post('/solicitacoes', (req, res) => {
     );
 });
 
-// Solicitações recebidas por um voluntário (tela de disponibilidade)
 app.get('/solicitacoes/voluntario/:id', (req, res) => {
     const sql = `SELECT s.id_solicitacao, u.nome AS nome_pcd, s.tipo_ajuda, s.descricao,
                         DATE_FORMAT(s.data_agendamento, '%d/%m/%Y') AS data_agendamento,
@@ -395,7 +375,6 @@ app.get('/solicitacoes/voluntario/:id', (req, res) => {
     });
 });
 
-// Solicitações feitas por um PcD (tela Minhas Solicitações)
 app.get('/solicitacoes/pcd/:id', (req, res) => {
     const sql = `SELECT s.id_solicitacao, u.nome AS nome_voluntario, s.tipo_ajuda, s.descricao,
                         DATE_FORMAT(s.data_agendamento, '%d/%m/%Y') AS data_agendamento,
@@ -417,7 +396,6 @@ app.get('/solicitacoes/pcd/:id', (req, res) => {
     });
 });
 
-// Aceitar / recusar / concluir
 app.patch('/solicitacoes/:id/status', (req, res) => {
     const { status } = req.body;
 
@@ -441,9 +419,6 @@ app.patch('/solicitacoes/:id/status', (req, res) => {
     );
 });
 
-
-// Busca a conversa do par ou cria, em uma única operação atômica.
-// O UNIQUE (usuario_menor, usuario_maior) impede duplicar, mesmo com envios simultâneos.
 function obterOuCriarConversa(usuarioA, usuarioB, callback) {
     const menor = Math.min(Number(usuarioA), Number(usuarioB));
     const maior = Math.max(Number(usuarioA), Number(usuarioB));
@@ -456,7 +431,6 @@ function obterOuCriarConversa(usuarioA, usuarioB, callback) {
     );
 }
 
-// Participantes de uma solicitação (PcD e voluntário, como ids de usuário)
 const SQL_PARTICIPANTES = `
     SELECT up.id_usuario AS id_pcd_usuario,
            uv.id_usuario AS id_voluntario_usuario
@@ -468,7 +442,6 @@ const SQL_PARTICIPANTES = `
     WHERE s.id_solicitacao = ?
 `;
 
-// Lista de conversas: UMA linha por usuário, com a mensagem mais recente
 app.get('/mensagens/conversas/:idUsuario', (req, res) => {
     const { idUsuario } = req.params;
 
@@ -515,7 +488,6 @@ app.get('/mensagens/conversas/:idUsuario', (req, res) => {
     });
 });
 
-// Histórico completo da conversa (todas as mensagens do par, em ordem cronológica)
 app.get('/mensagens/solicitacao/:idSolicitacao', (req, res) => {
     const { idSolicitacao } = req.params;
     const { usuarioId } = req.query;
@@ -562,7 +534,6 @@ app.get('/mensagens/solicitacao/:idSolicitacao', (req, res) => {
     });
 });
 
-// Envia mensagem: sempre entra na conversa já existente do par
 app.post('/mensagens/solicitacao/:idSolicitacao', (req, res) => {
     const { idSolicitacao } = req.params;
     const { usuarioId, conteudo } = req.body;

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 const CHAVE = 'leitura_ao_passar_mouse';
-const SO_ICONE = /[\uE000-\uF8FF]/g; // símbolos de ícones, que não devem ser lidos
+const SO_ICONE = /[\uE000-\uF8FF]/g;
 
 function textoDe(elemento) {
   const rotulo = elemento.getAttribute('aria-label');
@@ -12,7 +12,6 @@ function textoDe(elemento) {
     return (elemento.placeholder || '').trim();
   }
 
-  // texto que pertence só a este elemento (não dos filhos)
   const proprio = Array.from(elemento.childNodes)
     .filter((n) => n.nodeType === 3)
     .map((n) => n.textContent)
@@ -21,7 +20,6 @@ function textoDe(elemento) {
     .trim();
   if (proprio) return proprio;
 
-  // botões e cartões pequenos: lê o conteúdo curto de dentro
   const interno = (elemento.innerText || '').replace(SO_ICONE, '').trim();
   return interno.length <= 120 ? interno : '';
 }
@@ -41,7 +39,6 @@ export default function LeitorDePagina() {
   const ultimoTexto = useRef('');
   const temporizador = useRef(null);
 
-  // lembra a escolha da pessoa
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     try {
@@ -69,7 +66,6 @@ export default function LeitorDePagina() {
       if (e.target.closest && e.target.closest('[data-leitor]')) return;
       const texto = encontrarTexto(e.target);
       clearTimeout(temporizador.current);
-      // pequena espera: não lê tudo se o mouse só atravessar a tela rápido
       temporizador.current = setTimeout(() => falar(texto), 300);
     }
 
@@ -83,7 +79,7 @@ export default function LeitorDePagina() {
     }
 
     document.addEventListener('mouseover', aoPassar);
-    document.addEventListener('focusin', aoFocar); // também funciona com a tecla Tab
+    document.addEventListener('focusin', aoFocar);  
     document.addEventListener('mouseleave', aoSairDaTela);
 
     return () => {
@@ -106,7 +102,6 @@ export default function LeitorDePagina() {
     } catch (e) {}
 
     if (novo) {
-      // o clique libera o áudio no navegador e confirma que ligou
       const aviso = new SpeechSynthesisUtterance('Leitura ao passar o mouse ligada');
       aviso.lang = 'pt-BR';
       window.speechSynthesis.speak(aviso);

@@ -6,7 +6,6 @@ module.exports = function registrarRotasPerfil(app, conexao) {
         return res.status(500).json({ mensagem: msg });
     };
 
-    // Perfil completo + estatísticas reais
     app.get('/perfil/:id', (req, res) => {
         const sql = `
             SELECT u.id_usuario, u.nome, u.email, u.cpf, u.numero, u.tipo_usuario,
@@ -33,7 +32,6 @@ module.exports = function registrarRotasPerfil(app, conexao) {
         });
     });
 
-    // Bio, avatar e interesses
     app.put('/perfil/:id/personalizacao', (req, res) => {
         const { bio, avatar, interesses } = req.body;
 
@@ -55,7 +53,6 @@ module.exports = function registrarRotasPerfil(app, conexao) {
         );
     });
 
-    // Interruptores (notificações / legendas)
     app.patch('/perfil/:id/preferencias', (req, res) => {
         const { notificacoes, legendas_automaticas } = req.body;
         conexao.query(
@@ -75,7 +72,6 @@ module.exports = function registrarRotasPerfil(app, conexao) {
         );
     });
 
-    // Alterar senha (exige a senha atual)
     app.put('/perfil/:id/senha', (req, res) => {
         const { senha_atual, nova_senha } = req.body;
 

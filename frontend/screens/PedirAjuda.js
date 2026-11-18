@@ -11,7 +11,6 @@ export default function PedirAjuda({ navigation }) {
   const [legendasAtivas, setLegendasAtivas] = useState(true);
   const [librasAtivo, setLibrasAtivo] = useState(true);
 
-  // Cronômetro da chamada
   useEffect(() => {
     const intervalo = setInterval(() => {
       setSegundos((prev) => prev + 1);

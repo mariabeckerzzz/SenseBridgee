@@ -29,7 +29,6 @@ const MESES = [
 ];
 const TIPOS_AJUDA = ['Libras', 'Leitura', 'Atendimento geral'];
 
-// Alert.alert não funciona bem no navegador, então usamos window.alert nele
 function avisar(titulo, mensagem) {
   if (Platform.OS === 'web') {
     window.alert(mensagem ? `${titulo}\n${mensagem}` : titulo);
@@ -38,7 +37,6 @@ function avisar(titulo, mensagem) {
   }
 }
 
-// Gera YYYY-MM-DD no horário local (toISOString mudaria o dia por causa do fuso)
 function formatarDataSQL(data) {
   const ano = data.getFullYear();
   const mes = String(data.getMonth() + 1).padStart(2, '0');
@@ -97,7 +95,6 @@ export default function Voluntarios({ navigation }) {
     carregar();
   }, []);
 
-  // Voluntários que têm horário no dia da semana escolhido
   const voluntariosDoDia = voluntarios
     .map((v) => ({
       ...v,
@@ -134,7 +131,6 @@ export default function Voluntarios({ navigation }) {
     setEnviando(true);
 
     try {
-      // 1) descobre o id_pcd do usuário logado
       const respostaPcd = await fetch(`${API_URL}/pcd/usuario/${usuario.id_usuario}`);
       const dadosPcd = await respostaPcd.json();
 
@@ -142,7 +138,6 @@ export default function Voluntarios({ navigation }) {
         throw new Error(dadosPcd.mensagem || 'Perfil de PcD não encontrado');
       }
 
-      // 2) envia a solicitação
       const resposta = await fetch(`${API_URL}/solicitacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

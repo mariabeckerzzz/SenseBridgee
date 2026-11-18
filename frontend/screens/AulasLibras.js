@@ -282,7 +282,6 @@ export default function AulasLibras({ navigation }) {
   const ehPcd = perfil.includes('pcd') || perfil.includes('deficien');
   const ehVoluntario = perfil.includes('volunt');
 
-  // Muda o título do cabeçalho conforme o perfil (sem mexer no StackNavigator)
   useLayoutEffect(() => {
     navigation?.setOptions?.({
       title: ehPcd ? 'Ensinar Libras' : ehVoluntario ? 'Aprender Libras' : 'Libras',

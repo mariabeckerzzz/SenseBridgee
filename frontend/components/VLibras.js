@@ -6,9 +6,8 @@ const URL_WIDGET = 'https://vlibras.gov.br/app';
 export default function VLibras() {
   useEffect(() => {
     if (Platform.OS !== 'web') return;
-    if (document.querySelector('[vw]')) return; // evita carregar duas vezes
+    if (document.querySelector('[vw]')) return; 
 
-    // Marcação exigida pelo widget
     const caixa = document.createElement('div');
     caixa.setAttribute('vw', '');
     caixa.className = 'enabled';
