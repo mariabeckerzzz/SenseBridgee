@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -8,13 +8,14 @@ export default function TelaInicial({ navigation }) {
   const acoesPcD = [
     { titulo: 'Pedir Ajuda', subtitulo: 'Agendar com voluntário', icone: 'call', tela: 'Voluntarios' },
     { titulo: 'Minhas Solicitações', subtitulo: 'Acompanhar pedidos', icone: 'list', tela: 'MinhasSolicitacoes' },
-    { titulo: 'Aprender Libras', subtitulo: 'Aulas grátis', icone: 'sparkles', tela: 'AulasLibras' },
+    { titulo: 'Ensinar Libras', subtitulo: 'Compartilhe seu conhecimento', icone: 'sparkles', tela: 'AulasLibras' },
     { titulo: 'Meu Perfil', subtitulo: 'Configurações', icone: 'person', tela: 'Perfil' },
   ];
 
   const acoesVoluntario = [
     { titulo: 'Ver Solicitações', subtitulo: 'Pedidos de ajuda', icone: 'people', tela: 'SolicitacoesVoluntario' },
     { titulo: 'Minha Disponibilidade', subtitulo: 'Definir horários', icone: 'calendar', tela: 'DisponibilidadeVoluntario' },
+    { titulo: 'Aprender Libras', subtitulo: 'Aulas grátis', icone: 'sparkles', tela: 'AulasLibras' },
     { titulo: 'Meu Perfil', subtitulo: 'Configurações', icone: 'person', tela: 'Perfil' },
   ];
 
@@ -87,15 +88,21 @@ export default function TelaInicial({ navigation }) {
           <Text style={styles.tabTextoAtivo}>Início</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
-          <Text style={styles.tabTexto}>Agenda</Text>
-        </TouchableOpacity>
+        <TouchableOpacity
+  style={styles.tabItem}
+  onPress={() => navigation.navigate('Agenda')}
+>
+  <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
+  <Text style={styles.tabTexto}>Agenda</Text>
+</TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="chatbubble-outline" size={20} color="#9CA3AF" />
-          <Text style={styles.tabTexto}>Mensagens</Text>
-        </TouchableOpacity>
+        <TouchableOpacity
+  style={styles.tabItem}
+  onPress={() => navigation.navigate('Mensagens')}
+>
+  <Ionicons name="chatbubble-outline" size={20} color="#9CA3AF" />
+  <Text style={styles.tabTexto}>Mensagens</Text>
+</TouchableOpacity>
 
         <TouchableOpacity style={styles.tabItem}>
           <Ionicons name="ellipsis-horizontal" size={20} color="#9CA3AF" />

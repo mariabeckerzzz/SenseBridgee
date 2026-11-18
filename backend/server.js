@@ -8,6 +8,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+require('./ensino')(app, conexao);
+require('./videos')(app, conexao);
+require('./perfil')(app, conexao);
+
 app.post('/usuarios', async (req, res) => {
     const { nome, email, senha, cpf, numero, tipo_usuario } = req.body;
 
@@ -318,10 +322,6 @@ app.delete('/voluntarios/:id/disponibilidades/:idDisp', (req, res) => {
 });
 
 
-// ======================================================
-// PCD E SOLICITAÇÕES
-// ======================================================
-
 // Descobre o id_pcd de um usuário (o app usa ao enviar a solicitação)
 app.get('/pcd/usuario/:idUsuario', (req, res) => {
     conexao.query(
@@ -437,6 +437,188 @@ app.patch('/solicitacoes/:id/status', (req, res) => {
                 return res.status(404).json({ mensagem: 'Solicitação não encontrada' });
             }
             res.json({ mensagem: 'Status atualizado com sucesso' });
+        }
+    );
+});
+
+
+// Busca a conversa do par ou cria, em uma única operação atômica.
+// O UNIQUE (usuario_menor, usuario_maior) impede duplicar, mesmo com envios simultâneos.
+function obterOuCriarConversa(usuarioA, usuarioB, callback) {
+    const menor = Math.min(Number(usuarioA), Number(usuarioB));
+    const maior = Math.max(Number(usuarioA), Number(usuarioB));
+
+    conexao.query(
+        `INSERT INTO conversa (usuario_menor, usuario_maior) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE id_conversa = LAST_INSERT_ID(id_conversa)`,
+        [menor, maior],
+        (erro, resultado) => callback(erro, resultado && resultado.insertId)
+    );
+}
+
+// Participantes de uma solicitação (PcD e voluntário, como ids de usuário)
+const SQL_PARTICIPANTES = `
+    SELECT up.id_usuario AS id_pcd_usuario,
+           uv.id_usuario AS id_voluntario_usuario
+    FROM solicitacoes_ajuda s
+    JOIN pessoa_deficiencia p ON p.id_pcd = s.id_pcd
+    JOIN usuarios up ON up.id_usuario = p.id_usuario
+    JOIN voluntario v ON v.id_voluntario = s.id_voluntario
+    JOIN usuarios uv ON uv.id_usuario = v.id_usuario
+    WHERE s.id_solicitacao = ?
+`;
+
+// Lista de conversas: UMA linha por usuário, com a mensagem mais recente
+app.get('/mensagens/conversas/:idUsuario', (req, res) => {
+    const { idUsuario } = req.params;
+
+    const sql = `
+        SELECT
+            c.id_conversa,
+            (
+                SELECT s.id_solicitacao
+                FROM solicitacoes_ajuda s
+                JOIN pessoa_deficiencia p ON p.id_pcd = s.id_pcd
+                JOIN voluntario v ON v.id_voluntario = s.id_voluntario
+                WHERE s.status <> 'cancelada'
+                  AND LEAST(p.id_usuario, v.id_usuario) = c.usuario_menor
+                  AND GREATEST(p.id_usuario, v.id_usuario) = c.usuario_maior
+                ORDER BY s.criado_em DESC, s.id_solicitacao DESC
+                LIMIT 1
+            ) AS id_solicitacao,
+            u.id_usuario AS id_contato,
+            u.nome AS nome_contato,
+            ult.conteudo AS ultima_mensagem,
+            ult.data_envio AS data_ultima_mensagem
+        FROM conversa c
+        JOIN usuarios u
+             ON u.id_usuario = IF(c.usuario_menor = ?, c.usuario_maior, c.usuario_menor)
+        LEFT JOIN mensagem ult
+             ON ult.id_mensagem = (
+                SELECT m.id_mensagem
+                FROM mensagem m
+                WHERE m.id_conversa = c.id_conversa
+                ORDER BY m.data_envio DESC, m.id_mensagem DESC
+                LIMIT 1
+             )
+        WHERE (c.usuario_menor = ? OR c.usuario_maior = ?)
+        HAVING id_solicitacao IS NOT NULL
+        ORDER BY data_ultima_mensagem DESC, c.id_conversa DESC
+    `;
+
+    conexao.query(sql, [idUsuario, idUsuario, idUsuario], (erro, resultado) => {
+        if (erro) {
+            console.log(erro);
+            return res.status(500).json({ mensagem: 'Erro ao carregar conversas' });
+        }
+        res.json(resultado);
+    });
+});
+
+// Histórico completo da conversa (todas as mensagens do par, em ordem cronológica)
+app.get('/mensagens/solicitacao/:idSolicitacao', (req, res) => {
+    const { idSolicitacao } = req.params;
+    const { usuarioId } = req.query;
+
+    conexao.query(SQL_PARTICIPANTES, [idSolicitacao], (erro, participantes) => {
+        if (erro) {
+            console.log(erro);
+            return res.status(500).json({ mensagem: 'Erro ao verificar conversa' });
+        }
+
+        if (
+            participantes.length === 0 ||
+            ![String(participantes[0].id_pcd_usuario), String(participantes[0].id_voluntario_usuario)]
+                .includes(String(usuarioId))
+        ) {
+            return res.status(403).json({ mensagem: 'Você não participa desta conversa' });
+        }
+
+        const { id_pcd_usuario, id_voluntario_usuario } = participantes[0];
+
+        obterOuCriarConversa(id_pcd_usuario, id_voluntario_usuario, (erroConversa, idConversa) => {
+            if (erroConversa) {
+                console.log(erroConversa);
+                return res.status(500).json({ mensagem: 'Erro ao carregar conversa' });
+            }
+
+            const sql = `
+                SELECT m.id_mensagem, m.remetente, m.destinatario, m.conteudo,
+                       m.data_envio, u.nome AS nome_remetente
+                FROM mensagem m
+                JOIN usuarios u ON u.id_usuario = m.remetente
+                WHERE m.id_conversa = ?
+                ORDER BY m.data_envio ASC, m.id_mensagem ASC
+            `;
+
+            conexao.query(sql, [idConversa], (erroMensagens, mensagens) => {
+                if (erroMensagens) {
+                    console.log(erroMensagens);
+                    return res.status(500).json({ mensagem: 'Erro ao carregar mensagens' });
+                }
+                res.json(mensagens);
+            });
+        });
+    });
+});
+
+// Envia mensagem: sempre entra na conversa já existente do par
+app.post('/mensagens/solicitacao/:idSolicitacao', (req, res) => {
+    const { idSolicitacao } = req.params;
+    const { usuarioId, conteudo } = req.body;
+
+    if (!usuarioId || !conteudo?.trim()) {
+        return res.status(400).json({ mensagem: 'Escreva uma mensagem' });
+    }
+
+    conexao.query(
+        `${SQL_PARTICIPANTES} AND s.status <> 'cancelada'`,
+        [idSolicitacao],
+        (erro, participantes) => {
+            if (erro) {
+                console.log(erro);
+                return res.status(500).json({ mensagem: 'Erro ao verificar conversa' });
+            }
+
+            if (participantes.length === 0) {
+                return res.status(404).json({ mensagem: 'Conversa não encontrada' });
+            }
+
+            const { id_pcd_usuario, id_voluntario_usuario } = participantes[0];
+            let destinatario;
+
+            if (String(usuarioId) === String(id_pcd_usuario)) {
+                destinatario = id_voluntario_usuario;
+            } else if (String(usuarioId) === String(id_voluntario_usuario)) {
+                destinatario = id_pcd_usuario;
+            } else {
+                return res.status(403).json({ mensagem: 'Você não participa desta conversa' });
+            }
+
+            obterOuCriarConversa(usuarioId, destinatario, (erroConversa, idConversa) => {
+                if (erroConversa) {
+                    console.log(erroConversa);
+                    return res.status(500).json({ mensagem: 'Erro ao enviar mensagem' });
+                }
+
+                conexao.query(
+                    `INSERT INTO mensagem (id_conversa, id_solicitacao, remetente, destinatario, conteudo)
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [idConversa, idSolicitacao, usuarioId, destinatario, conteudo.trim()],
+                    (erroInserir, resultado) => {
+                        if (erroInserir) {
+                            console.log(erroInserir);
+                            return res.status(500).json({ mensagem: 'Erro ao enviar mensagem' });
+                        }
+
+                        res.status(201).json({
+                            mensagem: 'Mensagem enviada',
+                            id_mensagem: resultado.insertId,
+                            id_conversa: idConversa,
+                        });
+                    }
+                );
+            });
         }
     );
 });

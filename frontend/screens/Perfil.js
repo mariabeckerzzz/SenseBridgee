@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
-
-const API_URL = 'http://192.168.56.1:3000';
+import { API_URL } from '../utils/ensino';
+import EditarPerfil from '../components/EditarPerfil';
 
 export default function Perfil({ navigation }) {
 
   const { usuario, atualizarUsuario, logout } = useAuth();
+  const idUsuario = usuario?.id_usuario;
 
   const [salvando, setSalvando] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -28,6 +29,44 @@ export default function Perfil({ navigation }) {
 
   const [notificacoesAtivas, setNotificacoesAtivas] = useState(true);
   const [legendasAtivas, setLegendasAtivas] = useState(true);
+
+  // Perfil vindo do banco (bio, avatar, interesses, estatísticas, preferências)
+  const [perfil, setPerfil] = useState(null);
+  const [editandoPerfil, setEditandoPerfil] = useState(false);
+
+  const carregarPerfil = useCallback(async () => {
+    if (!idUsuario) return;
+    try {
+      const resposta = await fetch(`${API_URL}/perfil/${idUsuario}`);
+      const dados = await resposta.json();
+      if (resposta.ok) {
+        setPerfil(dados);
+        setNotificacoesAtivas(!!dados.notificacoes);
+        setLegendasAtivas(!!dados.legendas_automaticas);
+      }
+    } catch (erro) {
+      // sem conexão: a tela continua com os dados do login
+    }
+  }, [idUsuario]);
+
+  useEffect(() => {
+    carregarPerfil();
+  }, [carregarPerfil]);
+
+  async function alternarPreferencia(campo, valorNovo, aplicar, valorAntigo) {
+    aplicar(valorNovo);
+    try {
+      const resposta = await fetch(`${API_URL}/perfil/${idUsuario}/preferencias`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [campo]: valorNovo }),
+      });
+      if (!resposta.ok) throw new Error();
+    } catch (erro) {
+      aplicar(valorAntigo);
+      Alert.alert('Erro', 'Não foi possível salvar a preferência');
+    }
+  }
 
   function formatarCpf(texto) {
     const numeros = (texto || '').replace(/\D/g, '').slice(0, 11);
@@ -111,6 +150,8 @@ export default function Perfil({ navigation }) {
     return null;
   }
 
+  const interesses = perfil?.interesses ? perfil.interesses.split(',') : [];
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -122,7 +163,7 @@ export default function Perfil({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.avatarCirculo}>
-            <Text style={{ fontSize: 40 }}>👩</Text>
+            <Text style={{ fontSize: 40 }}>{perfil?.avatar || '👩'}</Text>
           </View>
 
           <Text style={styles.nome}>{usuario.nome}</Text>
@@ -136,20 +177,31 @@ export default function Perfil({ navigation }) {
 
         {/* Sobre */}
         <View style={styles.card}>
-          <Text style={styles.cardTitulo}>Sobre</Text>
+          <View style={styles.dadosPessoaisTopo}>
+            <Text style={styles.cardTitulo}>Sobre</Text>
+            <TouchableOpacity
+              onPress={() => setEditandoPerfil(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Editar perfil"
+            >
+              <Ionicons name="pencil" size={18} color="#2563EB" />
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.sobreTexto}>
-            Usuária do SenseBridge conectando-se com voluntários para
-            comunicação e aprendizado de Libras.
+            {perfil?.bio ||
+              'Toque no lápis para contar um pouco sobre você, escolher seu avatar e seus interesses.'}
           </Text>
 
-          <View style={styles.tags}>
-            <View style={styles.tag}>
-              <Text style={styles.tagTexto}>Libras</Text>
+          {interesses.length > 0 && (
+            <View style={styles.tags}>
+              {interesses.map((interesse) => (
+                <View key={interesse} style={styles.tag}>
+                  <Text style={styles.tagTexto}>{interesse}</Text>
+                </View>
+              ))}
             </View>
-            <View style={styles.tag}>
-              <Text style={styles.tagTexto}>Legendas</Text>
-            </View>
-          </View>
+          )}
         </View>
 
         {/* Dados pessoais */}
@@ -241,20 +293,20 @@ export default function Perfil({ navigation }) {
           )}
         </View>
 
-        {/* Estatísticas */}
+        {/* Estatísticas (dados reais do banco) */}
         <View style={styles.card}>
           <Text style={styles.cardTitulo}>Estatísticas</Text>
           <View style={styles.statsLinha}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumero}>8</Text>
+              <Text style={styles.statNumero}>{perfil?.chamadas ?? 0}</Text>
               <Text style={styles.statLabel}>Chamadas</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumero}>3</Text>
+              <Text style={styles.statNumero}>{perfil?.aulas ?? 0}</Text>
               <Text style={styles.statLabel}>Aulas</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumero}>2</Text>
+              <Text style={styles.statNumero}>{perfil?.meses ?? 0}</Text>
               <Text style={styles.statLabel}>Meses</Text>
             </View>
           </View>
@@ -271,7 +323,17 @@ export default function Perfil({ navigation }) {
             </View>
             <TouchableOpacity
               style={[styles.toggle, notificacoesAtivas && styles.toggleAtivo]}
-              onPress={() => setNotificacoesAtivas(!notificacoesAtivas)}
+              onPress={() =>
+                alternarPreferencia(
+                  'notificacoes',
+                  !notificacoesAtivas,
+                  setNotificacoesAtivas,
+                  notificacoesAtivas
+                )
+              }
+              accessibilityRole="switch"
+              accessibilityState={{ checked: notificacoesAtivas }}
+              accessibilityLabel="Notificações"
             >
               <View style={[styles.toggleBola, notificacoesAtivas && styles.toggleBolaAtiva]} />
             </TouchableOpacity>
@@ -284,11 +346,32 @@ export default function Perfil({ navigation }) {
             </View>
             <TouchableOpacity
               style={[styles.toggle, legendasAtivas && styles.toggleAtivo]}
-              onPress={() => setLegendasAtivas(!legendasAtivas)}
+              onPress={() =>
+                alternarPreferencia(
+                  'legendas_automaticas',
+                  !legendasAtivas,
+                  setLegendasAtivas,
+                  legendasAtivas
+                )
+              }
+              accessibilityRole="switch"
+              accessibilityState={{ checked: legendasAtivas }}
+              accessibilityLabel="Legendas automáticas"
             >
               <View style={[styles.toggleBola, legendasAtivas && styles.toggleBolaAtiva]} />
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={styles.opcaoLinha}
+            onPress={() => setEditandoPerfil(true)}
+          >
+            <View style={styles.opcaoEsquerda}>
+              <Ionicons name="happy-outline" size={20} color="#374151" />
+              <Text style={styles.opcaoTexto}>Avatar, sobre mim e senha</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.opcaoLinha, { borderBottomWidth: 0 }]}
@@ -309,6 +392,13 @@ export default function Perfil({ navigation }) {
         </TouchableOpacity>
 
       </ScrollView>
+
+      <EditarPerfil
+        visible={editandoPerfil}
+        onClose={() => setEditandoPerfil(false)}
+        perfil={perfil}
+        onSalvo={carregarPerfil}
+      />
     </SafeAreaView>
   );
 }
@@ -369,7 +459,7 @@ const styles = StyleSheet.create({
   },
   cardTitulo: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 10 },
   sobreTexto: { fontSize: 14, color: '#4B5563', lineHeight: 20 },
-  tags: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   tag: { backgroundColor: '#DBEAFE', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 },
   tagTexto: { color: '#2563EB', fontSize: 12, fontWeight: '600' },
   dadosPessoaisTopo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -22,23 +22,37 @@ export default function MinhasSolicitacoes({ navigation }) {
   const [erro, setErro] = useState('');
 
   async function carregarSolicitacoes() {
-    try {
-      if (!usuario?.id_usuario) return;
+  try {
+    if (!usuario?.id_usuario) return;
 
-      const resposta = await fetch(`${API_URL}/solicitacoes/usuario/${usuario.id_usuario}`);
-      const dados = await resposta.json();
+    // Busca o ID do perfil PcD usando o ID do usuário
+    const respostaPcd = await fetch(
+      `${API_URL}/pcd/usuario/${usuario.id_usuario}`
+    );
+    const dadosPcd = await respostaPcd.json();
 
-      if (!resposta.ok) {
-        throw new Error(dados.mensagem || 'Erro ao carregar solicitações');
-      }
-
-      setSolicitacoes(dados || []);
-    } catch (erro) {
-      setErro(erro.message || 'Erro ao carregar solicitações');
-    } finally {
-      setCarregando(false);
+    if (!respostaPcd.ok) {
+      throw new Error(dadosPcd.mensagem || 'Erro ao buscar perfil PcD');
     }
+
+    // Busca as solicitações usando o ID do PcD
+    const resposta = await fetch(
+      `${API_URL}/solicitacoes/pcd/${dadosPcd.id_pcd}`
+    );
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(dados.mensagem || 'Erro ao carregar solicitações');
+    }
+
+    setSolicitacoes(dados || []);
+    setErro('');
+  } catch (erro) {
+    setErro(erro.message || 'Erro ao carregar solicitações');
+  } finally {
+    setCarregando(false);
   }
+}
 
   useEffect(() => {
     if (!usuario?.id_usuario) {
